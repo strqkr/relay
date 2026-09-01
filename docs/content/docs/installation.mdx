@@ -50,6 +50,20 @@ This starts Postgres on `localhost:5432` and Redis on `localhost:6379` (see
 The API comes up on `localhost:8080`. `GET /` returns a small JSON info payload
 if you want to sanity-check it's up.
 
+<Callout title="Starting from an empty database?">
+Add `SPRING_PROFILES_ACTIVE=seed` to populate it with two sample organizations
+(with dashboard logins), endpoints in both verification states, topics,
+subscriptions, and deliveries covering all three statuses:
+
+```bash
+SPRING_PROFILES_ACTIVE=seed ./mvnw spring-boot:run
+```
+
+The generated emails, passwords, and API keys are printed to the console.
+It's idempotent - restarting with the profile still active just logs that
+seed data already exists rather than erroring or duplicating it.
+</Callout>
+
 </Step>
 <Step>
 
