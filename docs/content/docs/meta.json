@@ -9,6 +9,7 @@
     "rate-limits-and-retries",
     "webhooks",
     "api-reference",
-    "sdk"
+    "sdk",
+    "monitoring"
   ]
 }
