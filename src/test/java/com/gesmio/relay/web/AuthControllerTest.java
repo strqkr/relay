@@ -4,6 +4,7 @@ import com.gesmio.relay.repository.OrganizationRepository;
 import com.gesmio.relay.security.ApiKeyHasher;
 import com.gesmio.relay.security.PasswordHasher;
 import com.gesmio.relay.support.OrganizationFixtures;
+import com.gesmio.relay.support.UniqueRemoteAddr;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +42,7 @@ class AuthControllerTest {
     @Test
     void signupCreatesOrganizationReturnsApiKeyAndSetsSessionCookie() throws Exception {
         String email = uniqueEmail();
-        MvcResult result = mockMvc.perform(post("/auth/signup")
+        MvcResult result = mockMvc.perform(post("/auth/signup").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"organizationName\":\"Acme\",\"email\":\"" + email + "\",\"password\":\"correct-horse\"}"))
                 .andExpect(status().isCreated())
@@ -60,15 +61,15 @@ class AuthControllerTest {
         String email = uniqueEmail();
         String body = "{\"organizationName\":\"Acme\",\"email\":\"" + email + "\",\"password\":\"correct-horse\"}";
 
-        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/auth/signup").with(UniqueRemoteAddr.unique()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
-        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/auth/signup").with(UniqueRemoteAddr.unique()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict());
     }
 
     @Test
     void signupRejectsShortPassword() throws Exception {
-        mockMvc.perform(post("/auth/signup")
+        mockMvc.perform(post("/auth/signup").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"organizationName\":\"Acme\",\"email\":\"" + uniqueEmail() + "\",\"password\":\"short\"}"))
                 .andExpect(status().isBadRequest());
@@ -79,7 +80,7 @@ class AuthControllerTest {
         String email = uniqueEmail();
         OrganizationFixtures.seedWithCredentials(organizationRepository, apiKeyHasher, passwordHasher, "Acme", email, "correct-horse");
 
-        MvcResult login = mockMvc.perform(post("/auth/login")
+        MvcResult login = mockMvc.perform(post("/auth/login").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse\"}"))
                 .andExpect(status().isOk())
@@ -99,7 +100,7 @@ class AuthControllerTest {
         String email = uniqueEmail();
         OrganizationFixtures.seedWithCredentials(organizationRepository, apiKeyHasher, passwordHasher, "Acme", email, "correct-horse");
 
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/auth/login").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"wrong-password\"}"))
                 .andExpect(status().isUnauthorized());
@@ -107,7 +108,7 @@ class AuthControllerTest {
 
     @Test
     void loginRejectsUnknownEmail() throws Exception {
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/auth/login").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + uniqueEmail() + "\",\"password\":\"whatever1\"}"))
                 .andExpect(status().isUnauthorized());
@@ -117,7 +118,7 @@ class AuthControllerTest {
     void meReturnsCurrentOrganizationWhenSessionCookiePresent() throws Exception {
         String email = uniqueEmail();
         OrganizationFixtures.seedWithCredentials(organizationRepository, apiKeyHasher, passwordHasher, "Acme", email, "correct-horse");
-        MvcResult login = mockMvc.perform(post("/auth/login")
+        MvcResult login = mockMvc.perform(post("/auth/login").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse\"}"))
                 .andReturn();
@@ -137,7 +138,7 @@ class AuthControllerTest {
     void logoutRevokesSessionSoSubsequentMeCallFails() throws Exception {
         String email = uniqueEmail();
         OrganizationFixtures.seedWithCredentials(organizationRepository, apiKeyHasher, passwordHasher, "Acme", email, "correct-horse");
-        MvcResult login = mockMvc.perform(post("/auth/login")
+        MvcResult login = mockMvc.perform(post("/auth/login").with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse\"}"))
                 .andReturn();
@@ -145,6 +146,27 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/auth/logout").cookie(sessionCookie)).andExpect(status().isNoContent());
         mockMvc.perform(get("/auth/me").cookie(sessionCookie)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rateLimitsRepeatedLoginAttemptsFromTheSameAddress() throws Exception {
+        String email = uniqueEmail();
+        OrganizationFixtures.seedWithCredentials(organizationRepository, apiKeyHasher, passwordHasher, "Acme", email, "correct-horse");
+        var sameAddress = UniqueRemoteAddr.unique();
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/auth/login")
+                            .with(sameAddress)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"" + email + "\",\"password\":\"wrong\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/auth/login")
+                        .with(sameAddress)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse\"}"))
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test

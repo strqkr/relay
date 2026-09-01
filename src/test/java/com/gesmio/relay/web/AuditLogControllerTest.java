@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.support.UniqueRemoteAddr;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +26,7 @@ class AuditLogControllerTest {
     @Test
     void recordsAndListsActionsForTheCallingOrganization() throws Exception {
         MvcResult createOrg = mockMvc.perform(post("/organizations")
+                        .with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"acme\"}"))
                 .andExpect(status().isCreated())

@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.support.UniqueRemoteAddr;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,6 +22,7 @@ class OrganizationControllerTest {
     @Test
     void createsOrganizationWithoutRequiringAnApiKey() throws Exception {
         mockMvc.perform(post("/organizations")
+                        .with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"acme\"}"))
                 .andExpect(status().isCreated())
@@ -32,8 +34,28 @@ class OrganizationControllerTest {
     @Test
     void rejectsBlankName() throws Exception {
         mockMvc.perform(post("/organizations")
+                        .with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rateLimitsRepeatedCreationFromTheSameAddress() throws Exception {
+        var sameAddress = UniqueRemoteAddr.unique();
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/organizations")
+                            .with(sameAddress)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"acme-" + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(post("/organizations")
+                        .with(sameAddress)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"one-too-many\"}"))
+                .andExpect(status().isTooManyRequests());
     }
 }

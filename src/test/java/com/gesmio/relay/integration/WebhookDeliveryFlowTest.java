@@ -7,6 +7,7 @@ import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.signing.HmacSigner;
+import com.gesmio.relay.support.UniqueRemoteAddr;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,6 +79,7 @@ class WebhookDeliveryFlowTest {
 
     private String createOrganizationAndGetAuthHeader() throws Exception {
         MvcResult createOrg = mockMvc.perform(post("/organizations")
+                        .with(UniqueRemoteAddr.unique())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"acme\"}"))
                 .andExpect(status().isCreated())
