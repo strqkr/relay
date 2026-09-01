@@ -25,7 +25,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     public static final String ORGANIZATION_ATTRIBUTE = "currentOrganization";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final Set<String> PUBLIC_PATHS = Set.of("/organizations");
+    private static final Set<String> PUBLIC_PATHS = Set.of("/", "/organizations");
 
     private final OrganizationRepository organizationRepository;
     private final ApiKeyHasher apiKeyHasher;
