@@ -36,6 +36,12 @@ public class Endpoint {
     @Column(name = "rate_limit_per_second", nullable = false)
     private int rateLimitPerSecond = 10;
 
+    @Column(nullable = false)
+    private boolean verified = false;
+
+    @Column(name = "verified_at")
+    private Instant verifiedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -79,5 +85,18 @@ public class Endpoint {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public Instant getVerifiedAt() {
+        return verifiedAt;
+    }
+
+    public void markVerified() {
+        this.verified = true;
+        this.verifiedAt = Instant.now();
     }
 }
