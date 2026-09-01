@@ -4,6 +4,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -12,8 +13,6 @@ import java.util.List;
  */
 @Component
 public class RateLimiterService {
-
-    private static final String WINDOW_MILLIS = "1000";
 
     // Atomically increments the per-endpoint counter for the current 1s window and, on the
     // first hit of a new window, sets it to expire — avoiding a race between INCR and EXPIRE.
@@ -38,8 +37,13 @@ public class RateLimiterService {
     }
 
     public boolean tryConsume(Long endpointId, int ratePerSecond) {
-        String key = "relay:ratelimit:endpoint:" + endpointId;
-        Long allowed = redisTemplate.execute(script, List.of(key), String.valueOf(ratePerSecond), WINDOW_MILLIS);
+        return tryConsume("relay:ratelimit:endpoint:" + endpointId, ratePerSecond, Duration.ofSeconds(1));
+    }
+
+    /** General form: an arbitrary bucket key, a request limit, and how long that limit covers. */
+    public boolean tryConsume(String bucketKey, int limit, Duration window) {
+        Long allowed = redisTemplate.execute(
+                script, List.of(bucketKey), String.valueOf(limit), String.valueOf(window.toMillis()));
         return allowed != null && allowed == 1L;
     }
 }

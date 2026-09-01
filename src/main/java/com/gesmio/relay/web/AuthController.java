@@ -2,6 +2,7 @@ package com.gesmio.relay.web;
 
 import com.gesmio.relay.audit.AuditLogService;
 import com.gesmio.relay.domain.Organization;
+import com.gesmio.relay.ratelimit.PublicEndpointRateLimiter;
 import com.gesmio.relay.repository.OrganizationRepository;
 import com.gesmio.relay.security.ApiKeyHasher;
 import com.gesmio.relay.security.PasswordHasher;
@@ -29,23 +30,28 @@ public class AuthController {
     private final PasswordHasher passwordHasher;
     private final SessionService sessionService;
     private final AuditLogService auditLogService;
+    private final PublicEndpointRateLimiter publicEndpointRateLimiter;
     private final boolean secureCookie;
 
     public AuthController(OrganizationRepository organizationRepository, ApiKeyHasher apiKeyHasher,
                            PasswordHasher passwordHasher, SessionService sessionService,
-                           AuditLogService auditLogService,
+                           AuditLogService auditLogService, PublicEndpointRateLimiter publicEndpointRateLimiter,
                            @Value("${relay.session.cookie-secure:false}") boolean secureCookie) {
         this.organizationRepository = organizationRepository;
         this.apiKeyHasher = apiKeyHasher;
         this.passwordHasher = passwordHasher;
         this.sessionService = sessionService;
         this.auditLogService = auditLogService;
+        this.publicEndpointRateLimiter = publicEndpointRateLimiter;
         this.secureCookie = secureCookie;
     }
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
+    public AuthResponse signup(@Valid @RequestBody SignupRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
+        if (!publicEndpointRateLimiter.trySignup(httpRequest.getRemoteAddr())) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many signups from this address, try again later");
+        }
         if (organizationRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "an organization with this email already exists");
         }
@@ -61,7 +67,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
+        if (!publicEndpointRateLimiter.tryLogin(httpRequest.getRemoteAddr())) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many login attempts from this address, try again later");
+        }
+
         Organization organization = organizationRepository.findByEmail(request.email())
                 .filter(Organization::hasDashboardCredentials)
                 .filter(org -> passwordHasher.matches(request.password(), org.getPasswordHash()))
