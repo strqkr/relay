@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -65,8 +66,19 @@ class WebhookDeliveryFlowTest {
         server.stop(0);
     }
 
+    private String createOrganizationAndGetAuthHeader() throws Exception {
+        MvcResult createOrg = mockMvc.perform(post("/organizations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"acme\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String apiKey = read(createOrg.getResponse().getContentAsString(), "$.apiKey");
+        return "Bearer " + apiKey;
+    }
+
     @Test
     void deliversIngestedEventEndToEndAndShowsUpInDashboard() throws Exception {
+        String authHeader = createOrganizationAndGetAuthHeader();
         AtomicReference<String> receivedBody = new AtomicReference<>();
         AtomicReference<String> receivedSignature = new AtomicReference<>();
         server.createContext("/hook", exchange -> {
@@ -78,6 +90,7 @@ class WebhookDeliveryFlowTest {
         server.start();
 
         MvcResult createEndpoint = mockMvc.perform(post("/endpoints")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"orders\",\"url\":\"http://localhost:" + port + "/hook\"}"))
                 .andExpect(status().isCreated())
@@ -87,6 +100,7 @@ class WebhookDeliveryFlowTest {
         String secret = read(endpointBody, "$.secret");
 
         MvcResult ingest = mockMvc.perform(post("/endpoints/" + endpointId + "/events")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"order.created\",\"payload\":{\"orderId\":42}}"))
                 .andExpect(status().isCreated())
@@ -102,13 +116,16 @@ class WebhookDeliveryFlowTest {
         assertThat(receivedBody.get()).isEqualTo(delivery.getEvent().getPayload());
         assertThat(receivedSignature.get()).isEqualTo(hmacSigner.sign(receivedBody.get(), secret));
 
-        mockMvc.perform(get("/deliveries").param("status", "SUCCESS"))
+        mockMvc.perform(get("/deliveries")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
+                        .param("status", "SUCCESS"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.id == " + deliveryId + ")]").exists());
     }
 
     @Test
     void replayedFailedDeliveryBecomesDueAgain() throws Exception {
+        String authHeader = createOrganizationAndGetAuthHeader();
         server.createContext("/hook", exchange -> {
             exchange.sendResponseHeaders(500, -1);
             exchange.close();
@@ -116,12 +133,14 @@ class WebhookDeliveryFlowTest {
         server.start();
 
         MvcResult createEndpoint = mockMvc.perform(post("/endpoints")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"orders\",\"url\":\"http://localhost:" + port + "/hook\"}"))
                 .andReturn();
         Long endpointId = ((Number) read(createEndpoint.getResponse().getContentAsString(), "$.id")).longValue();
 
         MvcResult ingest = mockMvc.perform(post("/endpoints/" + endpointId + "/events")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"order.created\",\"payload\":{}}"))
                 .andReturn();
@@ -135,7 +154,8 @@ class WebhookDeliveryFlowTest {
         Delivery failed = deliveryRepository.findById(deliveryId).orElseThrow();
         assertThat(failed.getStatus()).isEqualTo(DeliveryStatus.FAILED);
 
-        mockMvc.perform(post("/deliveries/" + deliveryId + "/replay"))
+        mockMvc.perform(post("/deliveries/" + deliveryId + "/replay")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.attemptCount").value(0));
