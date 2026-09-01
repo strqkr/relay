@@ -18,11 +18,12 @@ cd relay
 docker compose up -d --build
 ```
 
-That builds and starts all five services — Postgres, Redis, the backend API
-(`localhost:8080`), the dashboard (`localhost:3000`), and this docs site
-(`localhost:3001`) — wired together on one network, with the backend waiting
-for Postgres/Redis to actually be healthy before it starts, and the dashboard
-waiting for the backend.
+That builds and starts all seven services — Postgres, Redis, the backend API
+(`localhost:8080`), the dashboard (`localhost:3000`), this docs site
+(`localhost:3001`), and Prometheus + Grafana for monitoring
+(`localhost:9090` / `localhost:3002`) — wired together on one network, with
+the backend waiting for Postgres/Redis to actually be healthy before it
+starts, and the dashboard waiting for the backend.
 
 <Callout title="Starting from an empty database?">
 Populate it with two sample organizations (with dashboard logins), endpoints
@@ -143,6 +144,31 @@ anywhere. Getting from "runs correctly in one command" to "deployed the way a
 team would run it in production" is real work this repo doesn't do for you.
 </Callout>
 
+## Monitoring
+
+`docker compose up` also starts Prometheus (`localhost:9090`) and Grafana
+(`localhost:3002`), pre-wired together — no manual setup needed. Log in to
+Grafana with `admin` / `admin` (or whatever you set `GRAFANA_ADMIN_PASSWORD`
+to in `.env`) and open the **relay** dashboard. It shows:
+
+- delivery attempts by outcome (success / failure / rate-limited), and the
+  resulting success rate
+- average delivery duration
+- HTTP request rate by route
+- JVM heap usage and Hikari connection pool usage
+
+The underlying metrics come from `/actuator/prometheus` (public, no
+credentials needed — Micrometer's `relay_delivery_attempts_total` and
+`relay_delivery_duration_seconds`, plus Spring Boot's standard JVM/HTTP/
+datasource metrics). Prometheus's scrape config lives in
+`monitoring/prometheus.yml`; the dashboard and datasource provisioning are
+under `monitoring/grafana/`.
+
+<Callout type="warn" title="Change the Grafana password before exposing this anywhere">
+`admin`/`admin` is fine on your own machine. If you put this behind a public
+hostname, set a real `GRAFANA_ADMIN_PASSWORD` in `.env` first.
+</Callout>
+
 ## Configuration
 
 The backend reads its config from `src/main/resources/application.properties`.
@@ -162,9 +188,10 @@ with different hostnames.
 
 Under Docker Compose specifically, `.env.example` documents the variables
 `docker-compose.yml` itself reads: `POSTGRES_DB` / `POSTGRES_USER` /
-`POSTGRES_PASSWORD`, `RELAY_DOCS_URL` / `RELAY_DASHBOARD_URL`, and
-`RELAY_BACKEND_PROFILE` (set to `seed` for sample data). Copy it to `.env` to
-override any of them — compose picks that file up automatically.
+`POSTGRES_PASSWORD`, `RELAY_DOCS_URL` / `RELAY_DASHBOARD_URL`,
+`RELAY_BACKEND_PROFILE` (set to `seed` for sample data), and
+`GRAFANA_ADMIN_PASSWORD`. Copy it to `.env` to override any of them — compose
+picks that file up automatically.
 
 ## Database migrations
 
