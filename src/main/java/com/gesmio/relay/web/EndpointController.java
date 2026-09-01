@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.audit.AuditLogService;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Organization;
 import com.gesmio.relay.repository.EndpointRepository;
@@ -23,10 +24,12 @@ public class EndpointController {
 
     private final EndpointRepository endpointRepository;
     private final HmacSigner hmacSigner;
+    private final AuditLogService auditLogService;
 
-    public EndpointController(EndpointRepository endpointRepository, HmacSigner hmacSigner) {
+    public EndpointController(EndpointRepository endpointRepository, HmacSigner hmacSigner, AuditLogService auditLogService) {
         this.endpointRepository = endpointRepository;
         this.hmacSigner = hmacSigner;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
@@ -37,7 +40,9 @@ public class EndpointController {
         if (request.rateLimitPerSecond() != null) {
             endpoint.setRateLimitPerSecond(request.rateLimitPerSecond());
         }
-        return EndpointResponse.from(endpointRepository.save(endpoint));
+        endpoint = endpointRepository.save(endpoint);
+        auditLogService.record(organization, "endpoint.created", "name=" + request.name() + ", url=" + request.url());
+        return EndpointResponse.from(endpoint);
     }
 
     @GetMapping("/{id}")

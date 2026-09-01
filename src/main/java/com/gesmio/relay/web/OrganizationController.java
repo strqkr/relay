@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.audit.AuditLogService;
 import com.gesmio.relay.domain.Organization;
 import com.gesmio.relay.repository.OrganizationRepository;
 import com.gesmio.relay.security.ApiKeyHasher;
@@ -17,17 +18,21 @@ public class OrganizationController {
 
     private final OrganizationRepository organizationRepository;
     private final ApiKeyHasher apiKeyHasher;
+    private final AuditLogService auditLogService;
 
-    public OrganizationController(OrganizationRepository organizationRepository, ApiKeyHasher apiKeyHasher) {
+    public OrganizationController(OrganizationRepository organizationRepository, ApiKeyHasher apiKeyHasher,
+                                   AuditLogService auditLogService) {
         this.organizationRepository = organizationRepository;
         this.apiKeyHasher = apiKeyHasher;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrganizationResponse create(@Valid @RequestBody CreateOrganizationRequest request) {
         String rawKey = apiKeyHasher.generateKey();
-        Organization organization = new Organization(request.name(), apiKeyHasher.hash(rawKey));
-        return OrganizationResponse.from(organizationRepository.save(organization), rawKey);
+        Organization organization = organizationRepository.save(new Organization(request.name(), apiKeyHasher.hash(rawKey)));
+        auditLogService.record(organization, "organization.created", "name=" + request.name());
+        return OrganizationResponse.from(organization, rawKey);
     }
 }
