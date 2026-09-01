@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static com.jayway.jsonpath.JsonPath.read;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -136,5 +137,28 @@ class TopicControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"payload\":{}}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listsTopicsAndSubscriptionsForTheCallingOrganization() throws Exception {
+        OrganizationFixtures.Seeded org = org();
+        Long topicId = createTopic(org.authorizationHeader(), "order.created");
+        Endpoint endpoint = verifiedEndpoint(org, "a", "https://example.com/a", "secretA");
+
+        mockMvc.perform(post("/topics/" + topicId + "/subscriptions")
+                        .header(HttpHeaders.AUTHORIZATION, org.authorizationHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endpointId\":" + endpoint.getId() + "}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/topics").header(HttpHeaders.AUTHORIZATION, org.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("order.created"));
+
+        mockMvc.perform(get("/topics/" + topicId + "/subscriptions").header(HttpHeaders.AUTHORIZATION, org.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].endpointId").value(endpoint.getId()));
     }
 }

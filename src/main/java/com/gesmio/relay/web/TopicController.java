@@ -17,6 +17,7 @@ import com.gesmio.relay.streams.DeliveryStreamPublisher;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -60,6 +61,19 @@ public class TopicController {
         Topic topic = topicRepository.save(new Topic(organization, request.name()));
         auditLogService.record(organization, "topic.created", "name=" + request.name());
         return TopicResponse.from(topic);
+    }
+
+    @GetMapping
+    public List<TopicResponse> list(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization) {
+        return topicRepository.findByOrganization(organization).stream().map(TopicResponse::from).toList();
+    }
+
+    @GetMapping("/{topicId}/subscriptions")
+    public List<SubscriptionResponse> listSubscriptions(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
+                                                          @PathVariable Long topicId) {
+        Topic topic = topicRepository.findByIdAndOrganization(topicId, organization)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "topic not found"));
+        return subscriptionRepository.findByTopic(topic).stream().map(SubscriptionResponse::from).toList();
     }
 
     @PostMapping("/{topicId}/subscriptions")

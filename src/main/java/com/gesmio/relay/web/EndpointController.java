@@ -23,6 +23,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/endpoints")
 public class EndpointController {
@@ -54,6 +56,11 @@ public class EndpointController {
         endpoint = endpointRepository.save(endpoint);
         auditLogService.record(organization, "endpoint.created", "name=" + request.name() + ", url=" + request.url());
         return EndpointResponse.from(endpoint);
+    }
+
+    @GetMapping
+    public List<EndpointResponse> list(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization) {
+        return endpointRepository.findByOrganization(organization).stream().map(EndpointResponse::from).toList();
     }
 
     @GetMapping("/{id}")
