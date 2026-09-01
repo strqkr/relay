@@ -137,3 +137,16 @@ Override any of them with the matching environment variable
 (`SPRING_DATASOURCE_URL`, `RELAY_DOCS_URL`, etc.) rather than editing the file,
 if you're running against a different Postgres/Redis or deploying somewhere
 with different hostnames.
+
+## Database migrations
+
+Schema is managed by [Flyway](https://flywaydb.org), not Hibernate — migrations
+live in `src/main/resources/db/migration` and run automatically on startup.
+`spring.jpa.hibernate.ddl-auto=validate` means Hibernate only checks the schema
+Flyway created matches the entity mappings; it never modifies anything itself.
+
+Adding a column or table means adding a new `V{n}__description.sql` file, not
+editing an existing one — Flyway checksums applied migrations and refuses to
+start if one has changed underneath it. If that happens on a database you don't
+care about (a local dev instance, say), the fix is to drop and recreate it
+rather than fight the checksum.
