@@ -40,6 +40,12 @@ class TopicControllerTest {
         return OrganizationFixtures.seed(organizationRepository, apiKeyHasher, "test-org");
     }
 
+    private Endpoint verifiedEndpoint(OrganizationFixtures.Seeded org, String name, String url, String secret) {
+        Endpoint endpoint = new Endpoint(org.organization(), name, url, secret);
+        endpoint.markVerified();
+        return endpointRepository.save(endpoint);
+    }
+
     private Long createTopic(String authHeader, String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/topics")
                         .header(HttpHeaders.AUTHORIZATION, authHeader)
@@ -69,8 +75,8 @@ class TopicControllerTest {
         OrganizationFixtures.Seeded org = org();
         Long topicId = createTopic(org.authorizationHeader(), "order.created");
 
-        Endpoint endpointA = endpointRepository.save(new Endpoint(org.organization(), "a", "https://example.com/a", "secretA"));
-        Endpoint endpointB = endpointRepository.save(new Endpoint(org.organization(), "b", "https://example.com/b", "secretB"));
+        Endpoint endpointA = verifiedEndpoint(org, "a", "https://example.com/a", "secretA");
+        Endpoint endpointB = verifiedEndpoint(org, "b", "https://example.com/b", "secretB");
 
         mockMvc.perform(post("/topics/" + topicId + "/subscriptions")
                         .header(HttpHeaders.AUTHORIZATION, org.authorizationHeader())
@@ -106,6 +112,19 @@ class TopicControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"endpointId\":" + othersEndpoint.getId() + "}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotSubscribeAnUnverifiedEndpoint() throws Exception {
+        OrganizationFixtures.Seeded org = org();
+        Long topicId = createTopic(org.authorizationHeader(), "order.created");
+        Endpoint unverified = endpointRepository.save(new Endpoint(org.organization(), "a", "https://example.com/a", "secretA"));
+
+        mockMvc.perform(post("/topics/" + topicId + "/subscriptions")
+                        .header(HttpHeaders.AUTHORIZATION, org.authorizationHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endpointId\":" + unverified.getId() + "}"))
+                .andExpect(status().isConflict());
     }
 
     @Test

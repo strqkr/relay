@@ -72,6 +72,9 @@ public class TopicController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "topic not found"));
         Endpoint endpoint = endpointRepository.findByIdAndOrganization(request.endpointId(), organization)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "endpoint not found"));
+        if (!endpoint.isVerified()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "endpoint must be verified before it can be subscribed to a topic");
+        }
 
         Subscription subscription = subscriptionRepository.save(new Subscription(topic, endpoint));
         auditLogService.record(organization, "subscription.created", "topic=" + topic.getName() + ", endpointId=" + endpoint.getId());

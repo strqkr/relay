@@ -3,7 +3,9 @@ package com.gesmio.relay.integration;
 import com.gesmio.relay.delivery.DeliveryWorker;
 import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
+import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.repository.DeliveryRepository;
+import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.signing.HmacSigner;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -55,6 +57,9 @@ class WebhookDeliveryFlowTest {
     private DeliveryRepository deliveryRepository;
 
     @Autowired
+    private EndpointRepository endpointRepository;
+
+    @Autowired
     private HmacSigner hmacSigner;
 
     private HttpServer server;
@@ -91,6 +96,18 @@ class WebhookDeliveryFlowTest {
         return ((Number) read(result.getResponse().getContentAsString(), "$.id")).longValue();
     }
 
+    private void verify(String authHeader, Long endpointId) throws Exception {
+        mockMvc.perform(post("/endpoints/" + endpointId + "/verify")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader))
+                .andExpect(status().isOk());
+    }
+
+    private void markVerifiedDirectly(Long endpointId) {
+        Endpoint endpoint = endpointRepository.findById(endpointId).orElseThrow();
+        endpoint.markVerified();
+        endpointRepository.save(endpoint);
+    }
+
     private void subscribe(String authHeader, Long topicId, Long endpointId) throws Exception {
         mockMvc.perform(post("/topics/" + topicId + "/subscriptions")
                         .header(HttpHeaders.AUTHORIZATION, authHeader)
@@ -122,6 +139,7 @@ class WebhookDeliveryFlowTest {
         Long endpointId = ((Number) read(endpointBody, "$.id")).longValue();
         String secret = read(endpointBody, "$.secret");
 
+        verify(authHeader, endpointId);
         Long topicId = createTopic(authHeader, "order.created");
         subscribe(authHeader, topicId, endpointId);
 
@@ -166,6 +184,8 @@ class WebhookDeliveryFlowTest {
                 .andReturn();
         Long endpointId = ((Number) read(createEndpoint.getResponse().getContentAsString(), "$.id")).longValue();
 
+        // this endpoint's /hook always returns 500, so verify would fail too — bypass directly
+        markVerifiedDirectly(endpointId);
         Long topicId = createTopic(authHeader, "order.created");
         subscribe(authHeader, topicId, endpointId);
 

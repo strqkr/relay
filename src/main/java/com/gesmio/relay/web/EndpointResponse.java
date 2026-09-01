@@ -10,6 +10,8 @@ public record EndpointResponse(
         String url,
         String secret,
         int rateLimitPerSecond,
+        boolean verified,
+        Instant verifiedAt,
         Instant createdAt
 ) {
     public static EndpointResponse from(Endpoint endpoint) {
@@ -19,6 +21,8 @@ public record EndpointResponse(
                 endpoint.getUrl(),
                 endpoint.getSecret(),
                 endpoint.getRateLimitPerSecond(),
+                endpoint.isVerified(),
+                endpoint.getVerifiedAt(),
                 endpoint.getCreatedAt()
         );
     }
