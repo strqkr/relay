@@ -86,11 +86,7 @@ export default function HomePage() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-fd-border">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 [background:radial-gradient(60%_50%_at_50%_0%,color-mix(in_oklch,var(--color-fd-primary)_16%,transparent),transparent)]"
-      />
+    <section>
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 md:grid-cols-2 md:items-center md:py-28">
         <div className="flex flex-col gap-6">
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-medium text-fd-muted-foreground">
@@ -168,7 +164,7 @@ function Num({ children }: { children: ReactNode }) {
 
 function HowItWorks() {
   return (
-    <section className="border-b border-fd-border px-6 py-20">
+    <section className="px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
@@ -198,7 +194,7 @@ function HowItWorks() {
 
 function Features() {
   return (
-    <section className="border-b border-fd-border px-6 py-20">
+    <section className="bg-fd-card/40 px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -259,9 +255,9 @@ function FinalCta() {
 
 function Footer() {
   return (
-    <footer className="border-t border-fd-border px-6 py-10">
+    <footer className="px-6 py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-fd-muted-foreground sm:flex-row">
-        <p>relay &middot; MIT licensed</p>
+        <p>relay</p>
         <div className="flex items-center gap-6">
           <Link href="/docs" className="hover:text-fd-foreground">
             Documentation

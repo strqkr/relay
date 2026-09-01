@@ -1,0 +1,125 @@
+---
+title: Installation
+description: Run the whole stack locally
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+relay is self-hosted — there's no managed/hosted version. Everything below runs
+on your own machine (or wherever you deploy it).
+
+## Prerequisites
+
+- **Java 21** and Maven (or use the bundled `./mvnw`)
+- **Node 22+** with [pnpm](https://pnpm.io) (`corepack enable` gets you the right version automatically)
+- **Docker**, for Postgres and Redis
+
+## Clone and start the datastores
+
+<Steps>
+<Step>
+
+### Clone the repo
+
+```bash
+git clone https://github.com/gesmio/relay.git
+cd relay
+```
+
+</Step>
+<Step>
+
+### Start Postgres and Redis
+
+```bash
+docker compose up -d
+```
+
+This starts Postgres on `localhost:5432` and Redis on `localhost:6379` (see
+`docker-compose.yml` at the repo root). Everything else below connects to these.
+
+</Step>
+<Step>
+
+### Start the backend
+
+```bash
+./mvnw spring-boot:run
+```
+
+The API comes up on `localhost:8080`. `GET /` returns a small JSON info payload
+if you want to sanity-check it's up.
+
+</Step>
+<Step>
+
+### Start the dashboard
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+Comes up on `localhost:3000`. It proxies API calls to the backend through a
+Next.js rewrite (`next.config.ts`), so no CORS setup is needed.
+
+</Step>
+<Step>
+
+### Start this docs site (optional)
+
+```bash
+cd docs
+pnpm install
+pnpm dev
+```
+
+Runs on `localhost:3001` — a different port from the dashboard, since both are
+commonly running side by side locally.
+
+</Step>
+</Steps>
+
+Once the backend and dashboard are up, jump to the [Quickstart](/docs/quickstart)
+to create an organization and deliver your first event.
+
+## Running it more like production
+
+The commands above (`spring-boot:run`, `next dev`) are dev-mode: hot reload,
+unminified, more verbose logging. To run something closer to what you'd
+actually deploy:
+
+```bash
+# backend — builds a runnable jar and runs it standalone
+./mvnw clean package
+java -jar target/relay-*.jar
+
+# web / docs — production build, then serve it
+cd web   && pnpm build && pnpm start   # or: cd docs && pnpm build && pnpm start
+```
+
+<Callout type="warn" title="No containerized deployment yet">
+There's no `Dockerfile` for the backend or the Next.js apps, and no Kubernetes
+manifests — `docker-compose.yml` only covers Postgres and Redis. Self-hosting
+today means running the jar and the Next.js servers yourself (a process
+manager, a systemd unit, whatever fits your setup). Containerizing the app
+itself is a reasonable next step but isn't done yet.
+</Callout>
+
+## Configuration
+
+The backend reads its config from `src/main/resources/application.properties`.
+The properties most worth knowing about:
+
+| Property | Default | Purpose |
+|---|---|---|
+| `spring.datasource.url` / `.username` / `.password` | `jdbc:postgresql://localhost:5432/relay`, `relay`, `relay` | Postgres connection |
+| `spring.data.redis.host` / `.port` | `localhost`, `6379` | Redis connection |
+| `relay.docs-url` | `http://localhost:3001` | Linked from `GET /` |
+| `relay.dashboard-url` | `http://localhost:3000` | Linked from `GET /` |
+
+Override any of them with the matching environment variable
+(`SPRING_DATASOURCE_URL`, `RELAY_DOCS_URL`, etc.) rather than editing the file,
+if you're running against a different Postgres/Redis or deploying somewhere
+with different hostnames.

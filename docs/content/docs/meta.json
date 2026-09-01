@@ -2,6 +2,7 @@
   "title": "Relay",
   "pages": [
     "index",
+    "installation",
     "quickstart",
     "concepts",
     "authentication",
