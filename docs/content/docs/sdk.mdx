@@ -3,12 +3,12 @@ title: SDK
 description: Node client for publishing events and verifying webhooks
 ---
 
-`@gesmio/relay-sdk` (in `sdk/` in the monorepo) wraps the full API and provides
+`@hisurum/relay-sdk` (in `sdk/` in the monorepo) wraps the full API and provides
 webhook signature verification. It has zero runtime dependencies — built on
 Node 18+'s global `fetch` and `node:crypto`.
 
 <Callout type="info" title="Not published to a registry">
-It's not on npm yet — install it from the workspace (`pnpm add @gesmio/relay-sdk
+It's not on npm yet — install it from the workspace (`pnpm add @hisurum/relay-sdk
 --workspace` from within the monorepo, or reference it via a relative/`file:`
 dependency from outside it) until it is.
 </Callout>
@@ -16,7 +16,7 @@ dependency from outside it) until it is.
 ## Setup
 
 ```ts
-import { RelayClient } from "@gesmio/relay-sdk";
+import { RelayClient } from "@hisurum/relay-sdk";
 
 const relay = new RelayClient({
   apiKey: process.env.RELAY_API_KEY!,
@@ -40,7 +40,7 @@ const { eventId, deliveryIds } = await relay.publish(topic.id, { orderId: 42, to
 ## Verifying inbound webhooks
 
 ```ts
-import { verifyWebhookSignature } from "@gesmio/relay-sdk";
+import { verifyWebhookSignature } from "@hisurum/relay-sdk";
 
 app.post("/hooks/orders", express.text({ type: "*/*" }), (req, res) => {
   const signature = req.header("x-relay-signature");
@@ -71,7 +71,7 @@ Failed requests throw `RelayApiError`, carrying the HTTP `status` and the
 response body as `message`:
 
 ```ts
-import { RelayApiError } from "@gesmio/relay-sdk";
+import { RelayApiError } from "@hisurum/relay-sdk";
 
 try {
   await relay.verifyEndpoint(endpoint.id);
@@ -89,5 +89,5 @@ try {
 `RelayClient` methods mirror the [API reference](/docs/api-reference) one-to-one:
 `createTopic`, `listTopics`, `listSubscriptions`, `subscribe`, `publish`,
 `createEndpoint`, `listEndpoints`, `getEndpoint`, `verifyEndpoint`,
-`listDeliveries`, `replayDelivery`. See [`sdk/README.md`](https://github.com/gesmio/relay/blob/main/sdk/README.md)
+`listDeliveries`, `replayDelivery`. See [`sdk/README.md`](https://github.com/hisurum/relay/blob/main/sdk/README.md)
 in the repo for the full source-level walkthrough.

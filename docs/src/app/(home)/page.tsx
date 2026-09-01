@@ -3,12 +3,65 @@ import {
   ArrowRight,
   Building2,
   Gauge,
+  History,
   KeyRound,
+  Network,
   Radio,
   RefreshCw,
   ScrollText,
+  Users,
+  Workflow,
 } from 'lucide-react';
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { ogLocale, ogSiteName, siteDescription, siteUrl, tagline } from '@/lib/shared';
+
+export const metadata: Metadata = {
+  // No `title` here on purpose: the root layout's default title *is* this page's title,
+  // and a string here would run through the "%s | relay docs" template instead of
+  // replacing it, producing "relay — ... | relay docs".
+  description: siteDescription,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    // A page's `openGraph` replaces the parent layout's rather than merging with it, so
+    // type/siteName/locale have to be repeated here too - see the note in lib/shared.ts.
+    type: 'website',
+    url: siteUrl,
+    siteName: ogSiteName,
+    locale: ogLocale,
+    title: `relay — ${tagline}`,
+    description: siteDescription,
+  },
+};
+
+const USE_CASES: { icon: ReactNode; title: string; description: string }[] = [
+  {
+    icon: <Users className="size-5" />,
+    title: 'Ship a webhooks API to your own customers',
+    description:
+      'Give each of your customers their own endpoint and signing secret, and let Relay handle delivery, retries, and verification — so your product can offer webhooks without your team building the infrastructure.',
+  },
+  {
+    icon: <Network className="size-5" />,
+    title: 'Fan out one event to many systems',
+    description:
+      'Publish a single event to a topic and every subscribed endpoint — analytics, billing, a partner integration — gets its own independently tracked, independently retried delivery.',
+  },
+  {
+    icon: <Workflow className="size-5" />,
+    title: 'Decouple internal services reliably',
+    description:
+      'Let one service publish what happened and move on. Relay queues the delivery, retries with backoff on failure, and keeps services from needing to know about each other’s uptime.',
+  },
+  {
+    icon: <History className="size-5" />,
+    title: 'Keep an audit trail of every integration event',
+    description:
+      'Every publish, delivery attempt, and outcome is recorded against the organization that triggered it — so when a customer asks “did you send this?”, the answer is a lookup, not a guess.',
+  },
+];
 
 const FEATURES: { icon: ReactNode; title: string; description: string }[] = [
   {
@@ -76,6 +129,7 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <UseCases />
       <HowItWorks />
       <Features />
       <FinalCta />
@@ -134,8 +188,8 @@ function CodePanel() {
       </div>
       <pre className="overflow-x-auto p-5 text-[13px] leading-relaxed">
         <code className="font-mono">
-          <span className="text-fd-muted-foreground">{'// npm i @gesmio/relay-sdk'}</span>{'\n'}
-          <Kw>import</Kw> {'{ RelayClient }'} <Kw>from</Kw> <Str>&quot;@gesmio/relay-sdk&quot;</Str>;{'\n\n'}
+          <span className="text-fd-muted-foreground">{'// npm i @hisurum/relay-sdk'}</span>{'\n'}
+          <Kw>import</Kw> {'{ RelayClient }'} <Kw>from</Kw> <Str>&quot;@hisurum/relay-sdk&quot;</Str>;{'\n\n'}
           <Kw>const</Kw> relay = <Kw>new</Kw> RelayClient({'{'}{'\n'}
           {'  '}apiKey: process.env.RELAY_API_KEY!,{'\n'}
           {'}'});{'\n\n'}
@@ -160,6 +214,37 @@ function Str({ children }: { children: ReactNode }) {
 }
 function Num({ children }: { children: ReactNode }) {
   return <span className="text-orange-600 dark:text-orange-400">{children}</span>;
+}
+
+function UseCases() {
+  return (
+    <section className="px-6 py-20">
+      <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Built for real integrations</h2>
+          <p className="mt-3 text-fd-muted-foreground">
+            A few of the ways teams use Relay to move events between systems.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-4 sm:grid-cols-2">
+          {USE_CASES.map((useCase) => (
+            <div
+              key={useCase.title}
+              className="flex gap-4 rounded-xl border border-fd-border bg-fd-card p-6"
+            >
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary">
+                {useCase.icon}
+              </div>
+              <div>
+                <h3 className="font-semibold">{useCase.title}</h3>
+                <p className="mt-1.5 text-sm text-fd-muted-foreground">{useCase.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function HowItWorks() {
@@ -266,7 +351,7 @@ function Footer() {
             SDK
           </Link>
           <a
-            href="https://github.com/gesmio/relay"
+            href="https://github.com/hisurum/relay"
             target="_blank"
             rel="noreferrer"
             className="hover:text-fd-foreground"

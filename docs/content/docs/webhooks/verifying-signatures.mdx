@@ -23,7 +23,7 @@ different signature.
 Using the [SDK](/docs/sdk):
 
 ```ts
-import { verifyWebhookSignature } from "@gesmio/relay-sdk";
+import { verifyWebhookSignature } from "@hisurum/relay-sdk";
 
 const signature = req.header("x-relay-signature");
 if (!signature || !verifyWebhookSignature(rawBody, signature, endpointSecret)) {

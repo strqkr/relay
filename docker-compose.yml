@@ -64,7 +64,10 @@ services:
       - "3000:3000"
 
   docs:
-    build: ./docs
+    build:
+      context: ./docs
+      args:
+        NEXT_PUBLIC_SITE_URL: ${RELAY_DOCS_URL:-http://localhost:3001}
     container_name: relay-docs
     ports:
       - "3001:3001"
