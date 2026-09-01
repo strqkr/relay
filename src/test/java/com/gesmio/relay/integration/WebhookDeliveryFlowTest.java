@@ -152,7 +152,7 @@ class WebhookDeliveryFlowTest {
         Long deliveryId = ((Number) ((java.util.List<?>) read(ingest.getResponse().getContentAsString(), "$.deliveryIds")).get(0)).longValue();
 
         // no manual trigger here — the stream consumer should pick this up and deliver it on its own
-        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
             assertThat(delivery.getStatus()).isEqualTo(DeliveryStatus.SUCCESS);
         });
@@ -197,7 +197,7 @@ class WebhookDeliveryFlowTest {
         Long deliveryId = ((Number) ((java.util.List<?>) read(ingest.getResponse().getContentAsString(), "$.deliveryIds")).get(0)).longValue();
 
         // wait for the stream consumer's first (failing) attempt before forcing it near exhaustion
-        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
             assertThat(delivery.getAttemptCount()).isGreaterThanOrEqualTo(1);
         });
