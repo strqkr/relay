@@ -11,5 +11,11 @@ services:
     volumes:
       - relay_pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: relay-redis
+    ports:
+      - "6379:6379"
+
 volumes:
   relay_pgdata:

@@ -8,6 +8,7 @@ import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.repository.EventRepository;
 import com.gesmio.relay.security.ApiKeyAuthFilter;
+import com.gesmio.relay.streams.DeliveryStreamPublisher;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,11 +27,14 @@ public class EventController {
     private final EndpointRepository endpointRepository;
     private final EventRepository eventRepository;
     private final DeliveryRepository deliveryRepository;
+    private final DeliveryStreamPublisher deliveryStreamPublisher;
 
-    public EventController(EndpointRepository endpointRepository, EventRepository eventRepository, DeliveryRepository deliveryRepository) {
+    public EventController(EndpointRepository endpointRepository, EventRepository eventRepository,
+                            DeliveryRepository deliveryRepository, DeliveryStreamPublisher deliveryStreamPublisher) {
         this.endpointRepository = endpointRepository;
         this.eventRepository = eventRepository;
         this.deliveryRepository = deliveryRepository;
+        this.deliveryStreamPublisher = deliveryStreamPublisher;
     }
 
     @PostMapping
@@ -42,6 +46,7 @@ public class EventController {
 
         Event event = eventRepository.save(new Event(endpoint, request.type(), request.payload().toString()));
         Delivery delivery = deliveryRepository.save(new Delivery(event));
+        deliveryStreamPublisher.publish(delivery.getId());
 
         return EventResponse.from(event, delivery);
     }
