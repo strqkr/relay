@@ -1,0 +1,44 @@
+package com.gesmio.relay.web;
+
+import com.gesmio.relay.domain.Delivery;
+import com.gesmio.relay.domain.Endpoint;
+import com.gesmio.relay.domain.Event;
+import com.gesmio.relay.repository.DeliveryRepository;
+import com.gesmio.relay.repository.EndpointRepository;
+import com.gesmio.relay.repository.EventRepository;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+@RestController
+@RequestMapping("/endpoints/{endpointId}/events")
+public class EventController {
+
+    private final EndpointRepository endpointRepository;
+    private final EventRepository eventRepository;
+    private final DeliveryRepository deliveryRepository;
+
+    public EventController(EndpointRepository endpointRepository, EventRepository eventRepository, DeliveryRepository deliveryRepository) {
+        this.endpointRepository = endpointRepository;
+        this.eventRepository = eventRepository;
+        this.deliveryRepository = deliveryRepository;
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EventResponse ingest(@PathVariable Long endpointId, @Valid @RequestBody IngestEventRequest request) {
+        Endpoint endpoint = endpointRepository.findById(endpointId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "endpoint not found"));
+
+        Event event = eventRepository.save(new Event(endpoint, request.type(), request.payload().toString()));
+        Delivery delivery = deliveryRepository.save(new Delivery(event));
+
+        return EventResponse.from(event, delivery);
+    }
+}
