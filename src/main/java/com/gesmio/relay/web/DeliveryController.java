@@ -35,8 +35,8 @@ public class DeliveryController {
     public Page<DeliveryResponse> list(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
                                         @RequestParam(required = false) DeliveryStatus status, Pageable pageable) {
         Page<Delivery> page = status != null
-                ? deliveryRepository.findByEvent_Endpoint_OrganizationAndStatus(organization, status, pageable)
-                : deliveryRepository.findByEvent_Endpoint_Organization(organization, pageable);
+                ? deliveryRepository.findByEndpoint_OrganizationAndStatus(organization, status, pageable)
+                : deliveryRepository.findByEndpoint_Organization(organization, pageable);
         return page.map(DeliveryResponse::from);
     }
 
@@ -44,7 +44,7 @@ public class DeliveryController {
     @Transactional
     public DeliveryResponse replay(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
                                     @PathVariable Long id) {
-        Delivery delivery = deliveryRepository.findByIdAndEvent_Endpoint_Organization(id, organization)
+        Delivery delivery = deliveryRepository.findByIdAndEndpoint_Organization(id, organization)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "delivery not found"));
 
         if (delivery.getStatus() != DeliveryStatus.FAILED) {

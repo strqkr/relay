@@ -17,9 +17,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
 
     List<Delivery> findByStatusAndNextAttemptAtLessThanEqual(DeliveryStatus status, Instant now);
 
-    Page<Delivery> findByEvent_Endpoint_OrganizationAndStatus(Organization organization, DeliveryStatus status, Pageable pageable);
+    Page<Delivery> findByEndpoint_OrganizationAndStatus(Organization organization, DeliveryStatus status, Pageable pageable);
 
-    Page<Delivery> findByEvent_Endpoint_Organization(Organization organization, Pageable pageable);
+    Page<Delivery> findByEndpoint_Organization(Organization organization, Pageable pageable);
 
-    Optional<Delivery> findByIdAndEvent_Endpoint_Organization(Long id, Organization organization);
+    Optional<Delivery> findByIdAndEndpoint_Organization(Long id, Organization organization);
 }

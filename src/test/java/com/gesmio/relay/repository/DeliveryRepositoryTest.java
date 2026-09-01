@@ -5,6 +5,7 @@ import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
 import com.gesmio.relay.domain.Organization;
+import com.gesmio.relay.domain.Topic;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -26,6 +27,9 @@ class DeliveryRepositoryTest {
     private EventRepository eventRepository;
 
     @Autowired
+    private TopicRepository topicRepository;
+
+    @Autowired
     private DeliveryRepository deliveryRepository;
 
     @Autowired
@@ -37,14 +41,16 @@ class DeliveryRepositoryTest {
 
     @Test
     void findsDueDeliveriesByStatusAndNextAttemptAt() {
-        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "orders-webhook", "https://example.com/hook", "s3cr3t"));
-        Event event = eventRepository.save(new Event(endpoint, "order.created", "{}"));
+        Organization organization = organization();
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization, "orders-webhook", "https://example.com/hook", "s3cr3t"));
+        Topic topic = topicRepository.save(new Topic(organization, "order.created"));
+        Event event = eventRepository.save(new Event(topic, "{}"));
 
-        Delivery due = new Delivery(event);
+        Delivery due = new Delivery(event, endpoint);
         due.setNextAttemptAt(Instant.now().minus(1, ChronoUnit.MINUTES));
         deliveryRepository.save(due);
 
-        Delivery notYetDue = new Delivery(event);
+        Delivery notYetDue = new Delivery(event, endpoint);
         notYetDue.setNextAttemptAt(Instant.now().plus(1, ChronoUnit.HOURS));
         deliveryRepository.save(notYetDue);
 
@@ -56,14 +62,16 @@ class DeliveryRepositoryTest {
 
     @Test
     void findsByStatusPaginated() {
-        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "orders-webhook", "https://example.com/hook", "s3cr3t"));
-        Event event = eventRepository.save(new Event(endpoint, "order.created", "{}"));
+        Organization organization = organization();
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization, "orders-webhook", "https://example.com/hook", "s3cr3t"));
+        Topic topic = topicRepository.save(new Topic(organization, "order.created"));
+        Event event = eventRepository.save(new Event(topic, "{}"));
 
-        Delivery failed = new Delivery(event);
+        Delivery failed = new Delivery(event, endpoint);
         failed.setStatus(DeliveryStatus.FAILED);
         deliveryRepository.save(failed);
 
-        Delivery pending = new Delivery(event);
+        Delivery pending = new Delivery(event, endpoint);
         deliveryRepository.save(pending);
 
         assertThat(deliveryRepository.findByStatus(DeliveryStatus.FAILED, PageRequest.of(0, 10)).getContent())

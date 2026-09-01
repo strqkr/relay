@@ -1,55 +1,54 @@
 package com.gesmio.relay.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Column;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "events")
-public class Event {
+@Table(name = "topics", uniqueConstraints = @UniqueConstraint(columnNames = {"organization_id", "name"}))
+public class Topic {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic;
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
 
-    @Lob
     @Column(nullable = false)
-    private String payload;
+    private String name;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    protected Event() {
+    protected Topic() {
     }
 
-    public Event(Topic topic, String payload) {
-        this.topic = topic;
-        this.payload = payload;
+    public Topic(Organization organization, String name) {
+        this.organization = organization;
+        this.name = name;
     }
 
     public Long getId() {
         return id;
     }
 
-    public Topic getTopic() {
-        return topic;
+    public Organization getOrganization() {
+        return organization;
     }
 
-    public String getPayload() {
-        return payload;
+    public String getName() {
+        return name;
     }
 
     public Instant getCreatedAt() {

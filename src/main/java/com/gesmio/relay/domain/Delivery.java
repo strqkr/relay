@@ -26,6 +26,10 @@ public class Delivery {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "endpoint_id", nullable = false)
+    private Endpoint endpoint;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DeliveryStatus status = DeliveryStatus.PENDING;
@@ -51,8 +55,9 @@ public class Delivery {
     protected Delivery() {
     }
 
-    public Delivery(Event event) {
+    public Delivery(Event event, Endpoint endpoint) {
         this.event = event;
+        this.endpoint = endpoint;
     }
 
     public Long getId() {
@@ -61,6 +66,10 @@ public class Delivery {
 
     public Event getEvent() {
         return event;
+    }
+
+    public Endpoint getEndpoint() {
+        return endpoint;
     }
 
     public DeliveryStatus getStatus() {

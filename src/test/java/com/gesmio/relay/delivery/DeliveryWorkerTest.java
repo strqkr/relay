@@ -5,10 +5,12 @@ import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
 import com.gesmio.relay.domain.Organization;
+import com.gesmio.relay.domain.Topic;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.repository.EventRepository;
 import com.gesmio.relay.repository.OrganizationRepository;
+import com.gesmio.relay.repository.TopicRepository;
 import com.gesmio.relay.signing.HmacSigner;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -45,6 +47,9 @@ class DeliveryWorkerTest {
     @Autowired
     private OrganizationRepository organizationRepository;
 
+    @Autowired
+    private TopicRepository topicRepository;
+
     private HttpServer server;
     private int port;
 
@@ -64,17 +69,21 @@ class DeliveryWorkerTest {
     }
 
     private Delivery seedDelivery(String path, String secret) {
-        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "test", "http://localhost:" + port + path, secret));
-        Event event = eventRepository.save(new Event(endpoint, "test.event", "{\"a\":1}"));
-        return deliveryRepository.save(new Delivery(event));
+        Organization organization = organization();
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization, "test", "http://localhost:" + port + path, secret));
+        Topic topic = topicRepository.save(new Topic(organization, "test.event"));
+        Event event = eventRepository.save(new Event(topic, "{\"a\":1}"));
+        return deliveryRepository.save(new Delivery(event, endpoint));
     }
 
     private Delivery seedDeliveryWithRateLimit(String path, String secret, int ratePerSecond) {
-        Endpoint endpoint = new Endpoint(organization(), "test", "http://localhost:" + port + path, secret);
+        Organization organization = organization();
+        Endpoint endpoint = new Endpoint(organization, "test", "http://localhost:" + port + path, secret);
         endpoint.setRateLimitPerSecond(ratePerSecond);
         endpoint = endpointRepository.save(endpoint);
-        Event event = eventRepository.save(new Event(endpoint, "test.event", "{\"a\":1}"));
-        return deliveryRepository.save(new Delivery(event));
+        Topic topic = topicRepository.save(new Topic(organization, "test.event"));
+        Event event = eventRepository.save(new Event(topic, "{\"a\":1}"));
+        return deliveryRepository.save(new Delivery(event, endpoint));
     }
 
     @Test
