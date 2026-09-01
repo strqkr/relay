@@ -11,11 +11,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("seed")
+// This activates a second, separately-cached Spring context (distinct from the one every
+// other @SpringBootTest shares) - including its own DeliveryStreamConsumer. Without its own
+// stream key/group, that consumer would sit in the same Redis consumer group as the shared
+// context's, racing it for messages neither one "owns" and silently stealing deliveries
+// other tests are asserting against.
+@TestPropertySource(properties = {
+        "relay.streams.delivery-stream-key=relay:deliveries:seed-test",
+        "relay.streams.consumer-group=relay-workers-seed-test"
+})
 class SeedDataRunnerTest {
 
     @Autowired
