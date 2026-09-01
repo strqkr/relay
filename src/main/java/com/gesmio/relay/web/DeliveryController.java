@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.audit.AuditLogService;
 import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Organization;
@@ -25,9 +26,11 @@ import java.time.Instant;
 public class DeliveryController {
 
     private final DeliveryRepository deliveryRepository;
+    private final AuditLogService auditLogService;
 
-    public DeliveryController(DeliveryRepository deliveryRepository) {
+    public DeliveryController(DeliveryRepository deliveryRepository, AuditLogService auditLogService) {
         this.deliveryRepository = deliveryRepository;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -54,7 +57,9 @@ public class DeliveryController {
         delivery.setStatus(DeliveryStatus.PENDING);
         delivery.setAttemptCount(0);
         delivery.setNextAttemptAt(Instant.now());
+        delivery = deliveryRepository.save(delivery);
 
-        return DeliveryResponse.from(deliveryRepository.save(delivery));
+        auditLogService.record(organization, "delivery.replayed", "deliveryId=" + delivery.getId());
+        return DeliveryResponse.from(delivery);
     }
 }

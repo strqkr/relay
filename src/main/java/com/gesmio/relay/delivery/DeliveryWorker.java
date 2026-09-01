@@ -7,6 +7,8 @@ import com.gesmio.relay.domain.Event;
 import com.gesmio.relay.ratelimit.RateLimiterService;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.signing.HmacSigner;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -31,15 +33,17 @@ public class DeliveryWorker {
     private final RestClient restClient;
     private final BackoffCalculator backoffCalculator;
     private final RateLimiterService rateLimiterService;
+    private final MeterRegistry meterRegistry;
 
     public DeliveryWorker(DeliveryRepository deliveryRepository, HmacSigner hmacSigner,
                            RestClient restClient, BackoffCalculator backoffCalculator,
-                           RateLimiterService rateLimiterService) {
+                           RateLimiterService rateLimiterService, MeterRegistry meterRegistry) {
         this.deliveryRepository = deliveryRepository;
         this.hmacSigner = hmacSigner;
         this.restClient = restClient;
         this.backoffCalculator = backoffCalculator;
         this.rateLimiterService = rateLimiterService;
+        this.meterRegistry = meterRegistry;
     }
 
     @Scheduled(fixedDelayString = "${relay.worker.poll-interval-ms:5000}")
@@ -60,6 +64,7 @@ public class DeliveryWorker {
         Endpoint endpoint = delivery.getEndpoint();
 
         if (!rateLimiterService.tryConsume(endpoint.getId(), endpoint.getRateLimitPerSecond())) {
+            meterRegistry.counter("relay.delivery.attempts", "outcome", "rate_limited").increment();
             delivery.setNextAttemptAt(Instant.now().plusSeconds(1));
             deliveryRepository.save(delivery);
             return;
@@ -71,6 +76,7 @@ public class DeliveryWorker {
         delivery.setAttemptCount(delivery.getAttemptCount() + 1);
         delivery.setLastAttemptAt(Instant.now());
 
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
             ResponseEntity<Void> response = restClient.post()
                     .uri(endpoint.getUrl())
@@ -82,13 +88,18 @@ public class DeliveryWorker {
 
             delivery.setLastResponseStatus(response.getStatusCode().value());
             delivery.setStatus(DeliveryStatus.SUCCESS);
+            meterRegistry.counter("relay.delivery.attempts", "outcome", "success").increment();
         } catch (RestClientResponseException e) {
             delivery.setLastResponseStatus(e.getStatusCode().value());
             scheduleRetryOrFail(delivery);
+            meterRegistry.counter("relay.delivery.attempts", "outcome", "failure").increment();
         } catch (RestClientException e) {
             log.warn("Delivery {} attempt {} failed: {}", delivery.getId(), delivery.getAttemptCount(), e.getMessage());
             delivery.setLastResponseStatus(null);
             scheduleRetryOrFail(delivery);
+            meterRegistry.counter("relay.delivery.attempts", "outcome", "failure").increment();
+        } finally {
+            sample.stop(meterRegistry.timer("relay.delivery.duration"));
         }
 
         deliveryRepository.save(delivery);

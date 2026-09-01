@@ -1,5 +1,6 @@
 package com.gesmio.relay.web;
 
+import com.gesmio.relay.audit.AuditLogService;
 import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
@@ -37,23 +38,28 @@ public class TopicController {
     private final EventRepository eventRepository;
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStreamPublisher deliveryStreamPublisher;
+    private final AuditLogService auditLogService;
 
     public TopicController(TopicRepository topicRepository, EndpointRepository endpointRepository,
                             SubscriptionRepository subscriptionRepository, EventRepository eventRepository,
-                            DeliveryRepository deliveryRepository, DeliveryStreamPublisher deliveryStreamPublisher) {
+                            DeliveryRepository deliveryRepository, DeliveryStreamPublisher deliveryStreamPublisher,
+                            AuditLogService auditLogService) {
         this.topicRepository = topicRepository;
         this.endpointRepository = endpointRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.eventRepository = eventRepository;
         this.deliveryRepository = deliveryRepository;
         this.deliveryStreamPublisher = deliveryStreamPublisher;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TopicResponse create(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
                                  @Valid @RequestBody CreateTopicRequest request) {
-        return TopicResponse.from(topicRepository.save(new Topic(organization, request.name())));
+        Topic topic = topicRepository.save(new Topic(organization, request.name()));
+        auditLogService.record(organization, "topic.created", "name=" + request.name());
+        return TopicResponse.from(topic);
     }
 
     @PostMapping("/{topicId}/subscriptions")
@@ -67,7 +73,9 @@ public class TopicController {
         Endpoint endpoint = endpointRepository.findByIdAndOrganization(request.endpointId(), organization)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "endpoint not found"));
 
-        return SubscriptionResponse.from(subscriptionRepository.save(new Subscription(topic, endpoint)));
+        Subscription subscription = subscriptionRepository.save(new Subscription(topic, endpoint));
+        auditLogService.record(organization, "subscription.created", "topic=" + topic.getName() + ", endpointId=" + endpoint.getId());
+        return SubscriptionResponse.from(subscription);
     }
 
     @PostMapping("/{topicId}/events")
