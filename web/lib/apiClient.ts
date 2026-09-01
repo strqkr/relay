@@ -17,7 +17,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set("Authorization", `Bearer ${apiKey}`);
   }
 
-  const response = await fetch(`/api/relay${path}`, { ...options, headers });
+  const response = await fetch(`/api/relay${path}`, { ...options, headers, credentials: "include" });
 
   if (!response.ok) {
     const body = await response.text();

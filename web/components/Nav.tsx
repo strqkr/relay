@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearStoredApiKey, getStoredApiKey } from "@/lib/apiKey";
-import { useSyncExternalStore } from "react";
+import { api } from "@/lib/apiClient";
+import { clearStoredApiKey } from "@/lib/apiKey";
+import { clearStoredSession, getStoredSession } from "@/lib/session";
+import { useIsConnected } from "@/lib/useConnection";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
@@ -12,20 +14,6 @@ const LINKS = [
   { href: "/deliveries", label: "Deliveries" },
 ];
 
-function noopSubscribe() {
-  return () => {};
-}
-
-function useIsConnected() {
-  // No cross-tab subscription needed — this only changes via our own connect/disconnect
-  // actions, which already trigger a re-render (navigation) that re-reads the snapshot.
-  return useSyncExternalStore(
-    noopSubscribe,
-    () => Boolean(getStoredApiKey()),
-    () => false
-  );
-}
-
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -33,7 +21,15 @@ export function Nav() {
 
   if (!connected) return null;
 
-  function disconnect() {
+  async function disconnect() {
+    if (getStoredSession()) {
+      try {
+        await api.post("/auth/logout");
+      } catch {
+        // best-effort — clearing local state below still logs the user out of this browser
+      }
+      clearStoredSession();
+    }
     clearStoredApiKey();
     router.push("/");
   }
