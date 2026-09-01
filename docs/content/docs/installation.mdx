@@ -146,28 +146,9 @@ team would run it in production" is real work this repo doesn't do for you.
 
 ## Monitoring
 
-`docker compose up` also starts Prometheus (`localhost:9090`) and Grafana
-(`localhost:3002`), pre-wired together — no manual setup needed. Log in to
-Grafana with `admin` / `admin` (or whatever you set `GRAFANA_ADMIN_PASSWORD`
-to in `.env`) and open the **relay** dashboard. It shows:
-
-- delivery attempts by outcome (success / failure / rate-limited), and the
-  resulting success rate
-- average delivery duration
-- HTTP request rate by route
-- JVM heap usage and Hikari connection pool usage
-
-The underlying metrics come from `/actuator/prometheus` (public, no
-credentials needed — Micrometer's `relay_delivery_attempts_total` and
-`relay_delivery_duration_seconds`, plus Spring Boot's standard JVM/HTTP/
-datasource metrics). Prometheus's scrape config lives in
-`monitoring/prometheus.yml`; the dashboard and datasource provisioning are
-under `monitoring/grafana/`.
-
-<Callout type="warn" title="Change the Grafana password before exposing this anywhere">
-`admin`/`admin` is fine on your own machine. If you put this behind a public
-hostname, set a real `GRAFANA_ADMIN_PASSWORD` in `.env` first.
-</Callout>
+`docker compose up` also starts Prometheus and Grafana, pre-wired together —
+see [Monitoring](/docs/monitoring) for what the dashboard shows, the metrics
+underneath it, and how to query them yourself.
 
 ## Configuration
 
