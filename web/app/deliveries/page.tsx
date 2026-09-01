@@ -42,7 +42,7 @@ export default function DeliveriesPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10">
       <div>
         <h1 className="text-xl font-semibold">Deliveries</h1>
         <p className="text-sm text-muted-foreground">
