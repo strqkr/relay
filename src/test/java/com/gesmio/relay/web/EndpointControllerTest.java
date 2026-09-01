@@ -93,4 +93,24 @@ class EndpointControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, authHeader()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void listsOnlyTheCallingOrganizationsEndpoints() throws Exception {
+        String ownerAuth = authHeader();
+        mockMvc.perform(post("/endpoints")
+                .header(HttpHeaders.AUTHORIZATION, ownerAuth)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"orders-webhook\",\"url\":\"https://example.com/hook\"}"));
+
+        String otherAuth = authHeader();
+        mockMvc.perform(post("/endpoints")
+                .header(HttpHeaders.AUTHORIZATION, otherAuth)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"other-webhook\",\"url\":\"https://example.com/other\"}"));
+
+        mockMvc.perform(get("/endpoints").header(HttpHeaders.AUTHORIZATION, ownerAuth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("orders-webhook"));
+    }
 }
