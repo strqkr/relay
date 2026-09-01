@@ -89,7 +89,7 @@ try {
 ## Development
 
 ```
-npm install
-npm test
-npm run build
+pnpm install
+pnpm test
+pnpm run build
 ```
