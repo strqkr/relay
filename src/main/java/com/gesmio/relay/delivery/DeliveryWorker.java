@@ -57,7 +57,7 @@ public class DeliveryWorker {
     @Transactional
     public void attempt(Delivery delivery) {
         Event event = delivery.getEvent();
-        Endpoint endpoint = event.getEndpoint();
+        Endpoint endpoint = delivery.getEndpoint();
 
         if (!rateLimiterService.tryConsume(endpoint.getId(), endpoint.getRateLimitPerSecond())) {
             delivery.setNextAttemptAt(Instant.now().plusSeconds(1));

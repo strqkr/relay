@@ -81,6 +81,24 @@ class WebhookDeliveryFlowTest {
         return "Bearer " + apiKey;
     }
 
+    private Long createTopic(String authHeader, String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/topics")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return ((Number) read(result.getResponse().getContentAsString(), "$.id")).longValue();
+    }
+
+    private void subscribe(String authHeader, Long topicId, Long endpointId) throws Exception {
+        mockMvc.perform(post("/topics/" + topicId + "/subscriptions")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endpointId\":" + endpointId + "}"))
+                .andExpect(status().isCreated());
+    }
+
     @Test
     void deliversIngestedEventAutomaticallyViaTheStreamAndShowsUpInDashboard() throws Exception {
         String authHeader = createOrganizationAndGetAuthHeader();
@@ -104,13 +122,16 @@ class WebhookDeliveryFlowTest {
         Long endpointId = ((Number) read(endpointBody, "$.id")).longValue();
         String secret = read(endpointBody, "$.secret");
 
-        MvcResult ingest = mockMvc.perform(post("/endpoints/" + endpointId + "/events")
+        Long topicId = createTopic(authHeader, "order.created");
+        subscribe(authHeader, topicId, endpointId);
+
+        MvcResult ingest = mockMvc.perform(post("/topics/" + topicId + "/events")
                         .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"order.created\",\"payload\":{\"orderId\":42}}"))
+                        .content("{\"payload\":{\"orderId\":42}}"))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long deliveryId = ((Number) read(ingest.getResponse().getContentAsString(), "$.deliveryId")).longValue();
+        Long deliveryId = ((Number) ((java.util.List<?>) read(ingest.getResponse().getContentAsString(), "$.deliveryIds")).get(0)).longValue();
 
         // no manual trigger here — the stream consumer should pick this up and deliver it on its own
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
@@ -145,12 +166,15 @@ class WebhookDeliveryFlowTest {
                 .andReturn();
         Long endpointId = ((Number) read(createEndpoint.getResponse().getContentAsString(), "$.id")).longValue();
 
-        MvcResult ingest = mockMvc.perform(post("/endpoints/" + endpointId + "/events")
+        Long topicId = createTopic(authHeader, "order.created");
+        subscribe(authHeader, topicId, endpointId);
+
+        MvcResult ingest = mockMvc.perform(post("/topics/" + topicId + "/events")
                         .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"order.created\",\"payload\":{}}"))
+                        .content("{\"payload\":{}}"))
                 .andReturn();
-        Long deliveryId = ((Number) read(ingest.getResponse().getContentAsString(), "$.deliveryId")).longValue();
+        Long deliveryId = ((Number) ((java.util.List<?>) read(ingest.getResponse().getContentAsString(), "$.deliveryIds")).get(0)).longValue();
 
         // wait for the stream consumer's first (failing) attempt before forcing it near exhaustion
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {

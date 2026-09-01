@@ -4,10 +4,12 @@ import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
+import com.gesmio.relay.domain.Topic;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.repository.EventRepository;
 import com.gesmio.relay.repository.OrganizationRepository;
+import com.gesmio.relay.repository.TopicRepository;
 import com.gesmio.relay.security.ApiKeyHasher;
 import com.gesmio.relay.support.OrganizationFixtures;
 import org.junit.jupiter.api.Test;
@@ -47,10 +49,14 @@ class DeliveryControllerTest {
     @Autowired
     private ApiKeyHasher apiKeyHasher;
 
+    @Autowired
+    private TopicRepository topicRepository;
+
     private Delivery seed(OrganizationFixtures.Seeded org, DeliveryStatus status) {
         Endpoint endpoint = endpointRepository.save(new Endpoint(org.organization(), "orders-webhook", "https://example.com/hook", "s3cr3t"));
-        Event event = eventRepository.save(new Event(endpoint, "order.created", "{}"));
-        Delivery delivery = new Delivery(event);
+        Topic topic = topicRepository.save(new Topic(org.organization(), "order.created." + System.nanoTime()));
+        Event event = eventRepository.save(new Event(topic, "{}"));
+        Delivery delivery = new Delivery(event, endpoint);
         delivery.setStatus(status);
         return deliveryRepository.save(delivery);
     }

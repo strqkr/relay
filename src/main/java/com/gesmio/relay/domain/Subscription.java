@@ -1,21 +1,24 @@
 package com.gesmio.relay.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Column;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 
+/**
+ * Links an endpoint to a topic: this endpoint receives every event published to this topic.
+ */
 @Entity
-@Table(name = "events")
-public class Event {
+@Table(name = "subscriptions", uniqueConstraints = @UniqueConstraint(columnNames = {"topic_id", "endpoint_id"}))
+public class Subscription {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,19 +28,19 @@ public class Event {
     @JoinColumn(name = "topic_id", nullable = false)
     private Topic topic;
 
-    @Lob
-    @Column(nullable = false)
-    private String payload;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "endpoint_id", nullable = false)
+    private Endpoint endpoint;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    protected Event() {
+    protected Subscription() {
     }
 
-    public Event(Topic topic, String payload) {
+    public Subscription(Topic topic, Endpoint endpoint) {
         this.topic = topic;
-        this.payload = payload;
+        this.endpoint = endpoint;
     }
 
     public Long getId() {
@@ -48,8 +51,8 @@ public class Event {
         return topic;
     }
 
-    public String getPayload() {
-        return payload;
+    public Endpoint getEndpoint() {
+        return endpoint;
     }
 
     public Instant getCreatedAt() {
