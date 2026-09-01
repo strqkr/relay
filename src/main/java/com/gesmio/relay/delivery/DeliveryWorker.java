@@ -4,6 +4,7 @@ import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
+import com.gesmio.relay.ratelimit.RateLimiterService;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.signing.HmacSigner;
 import org.slf4j.Logger;
@@ -29,13 +30,16 @@ public class DeliveryWorker {
     private final HmacSigner hmacSigner;
     private final RestClient restClient;
     private final BackoffCalculator backoffCalculator;
+    private final RateLimiterService rateLimiterService;
 
     public DeliveryWorker(DeliveryRepository deliveryRepository, HmacSigner hmacSigner,
-                           RestClient restClient, BackoffCalculator backoffCalculator) {
+                           RestClient restClient, BackoffCalculator backoffCalculator,
+                           RateLimiterService rateLimiterService) {
         this.deliveryRepository = deliveryRepository;
         this.hmacSigner = hmacSigner;
         this.restClient = restClient;
         this.backoffCalculator = backoffCalculator;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @Scheduled(fixedDelayString = "${relay.worker.poll-interval-ms:5000}")
@@ -49,6 +53,13 @@ public class DeliveryWorker {
     public void attempt(Delivery delivery) {
         Event event = delivery.getEvent();
         Endpoint endpoint = event.getEndpoint();
+
+        if (!rateLimiterService.tryConsume(endpoint.getId(), endpoint.getRateLimitPerSecond())) {
+            delivery.setNextAttemptAt(Instant.now().plusSeconds(1));
+            deliveryRepository.save(delivery);
+            return;
+        }
+
         String payload = event.getPayload();
         String signature = hmacSigner.sign(payload, endpoint.getSecret());
 

@@ -60,6 +60,14 @@ class DeliveryWorkerTest {
         return deliveryRepository.save(new Delivery(event));
     }
 
+    private Delivery seedDeliveryWithRateLimit(String path, String secret, int ratePerSecond) {
+        Endpoint endpoint = new Endpoint("test", "http://localhost:" + port + path, secret);
+        endpoint.setRateLimitPerSecond(ratePerSecond);
+        endpoint = endpointRepository.save(endpoint);
+        Event event = eventRepository.save(new Event(endpoint, "test.event", "{\"a\":1}"));
+        return deliveryRepository.save(new Delivery(event));
+    }
+
     @Test
     void marksDeliverySuccessAndSendsValidSignatureWhenEndpointReturns2xx() throws Exception {
         AtomicReference<String> receivedSignature = new AtomicReference<>();
@@ -127,5 +135,27 @@ class DeliveryWorkerTest {
         Delivery reloaded = deliveryRepository.findById(delivery.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(DeliveryStatus.PENDING);
         assertThat(reloaded.getLastResponseStatus()).isNull();
+    }
+
+    @Test
+    void skipsAttemptWithoutHittingEndpointWhenRateLimited() throws Exception {
+        AtomicReference<Integer> requestCount = new AtomicReference<>(0);
+        server.createContext("/hook", exchange -> {
+            requestCount.updateAndGet(count -> count + 1);
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+
+        Delivery delivery = seedDeliveryWithRateLimit("/hook", "s3cr3t", 1);
+
+        worker.attempt(delivery); // consumes the single token for this endpoint, succeeds
+        worker.attempt(delivery); // should be rate-limited, no HTTP call made
+
+        assertThat(requestCount.get()).isEqualTo(1);
+
+        Delivery reloaded = deliveryRepository.findById(delivery.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(DeliveryStatus.SUCCESS);
+        assertThat(reloaded.getAttemptCount()).isEqualTo(1);
     }
 }
