@@ -8,5 +8,12 @@ export function baseOptions(): BaseLayoutProps {
       title: appName,
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+    links: [
+      {
+        type: 'main',
+        text: 'Documentation',
+        url: '/docs',
+      },
+    ],
   };
 }
