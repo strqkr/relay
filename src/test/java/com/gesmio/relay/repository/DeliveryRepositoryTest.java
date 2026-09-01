@@ -4,6 +4,7 @@ import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
+import com.gesmio.relay.domain.Organization;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -27,9 +28,16 @@ class DeliveryRepositoryTest {
     @Autowired
     private DeliveryRepository deliveryRepository;
 
+    @Autowired
+    private OrganizationRepository organizationRepository;
+
+    private Organization organization() {
+        return organizationRepository.save(new Organization("test-org", "test-hash-" + System.nanoTime()));
+    }
+
     @Test
     void findsDueDeliveriesByStatusAndNextAttemptAt() {
-        Endpoint endpoint = endpointRepository.save(new Endpoint("orders-webhook", "https://example.com/hook", "s3cr3t"));
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "orders-webhook", "https://example.com/hook", "s3cr3t"));
         Event event = eventRepository.save(new Event(endpoint, "order.created", "{}"));
 
         Delivery due = new Delivery(event);
@@ -48,7 +56,7 @@ class DeliveryRepositoryTest {
 
     @Test
     void findsByStatusPaginated() {
-        Endpoint endpoint = endpointRepository.save(new Endpoint("orders-webhook", "https://example.com/hook", "s3cr3t"));
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "orders-webhook", "https://example.com/hook", "s3cr3t"));
         Event event = eventRepository.save(new Event(endpoint, "order.created", "{}"));
 
         Delivery failed = new Delivery(event);

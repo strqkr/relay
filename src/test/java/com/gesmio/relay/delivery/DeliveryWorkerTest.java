@@ -4,9 +4,11 @@ import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
 import com.gesmio.relay.domain.Endpoint;
 import com.gesmio.relay.domain.Event;
+import com.gesmio.relay.domain.Organization;
 import com.gesmio.relay.repository.DeliveryRepository;
 import com.gesmio.relay.repository.EndpointRepository;
 import com.gesmio.relay.repository.EventRepository;
+import com.gesmio.relay.repository.OrganizationRepository;
 import com.gesmio.relay.signing.HmacSigner;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +42,9 @@ class DeliveryWorkerTest {
     @Autowired
     private HmacSigner hmacSigner;
 
+    @Autowired
+    private OrganizationRepository organizationRepository;
+
     private HttpServer server;
     private int port;
 
@@ -54,14 +59,18 @@ class DeliveryWorkerTest {
         server.stop(0);
     }
 
+    private Organization organization() {
+        return organizationRepository.save(new Organization("test-org", "test-hash-" + System.nanoTime()));
+    }
+
     private Delivery seedDelivery(String path, String secret) {
-        Endpoint endpoint = endpointRepository.save(new Endpoint("test", "http://localhost:" + port + path, secret));
+        Endpoint endpoint = endpointRepository.save(new Endpoint(organization(), "test", "http://localhost:" + port + path, secret));
         Event event = eventRepository.save(new Event(endpoint, "test.event", "{\"a\":1}"));
         return deliveryRepository.save(new Delivery(event));
     }
 
     private Delivery seedDeliveryWithRateLimit(String path, String secret, int ratePerSecond) {
-        Endpoint endpoint = new Endpoint("test", "http://localhost:" + port + path, secret);
+        Endpoint endpoint = new Endpoint(organization(), "test", "http://localhost:" + port + path, secret);
         endpoint.setRateLimitPerSecond(ratePerSecond);
         endpoint = endpointRepository.save(endpoint);
         Event event = eventRepository.save(new Event(endpoint, "test.event", "{\"a\":1}"));

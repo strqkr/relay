@@ -2,7 +2,9 @@ package com.gesmio.relay.web;
 
 import com.gesmio.relay.domain.Delivery;
 import com.gesmio.relay.domain.DeliveryStatus;
+import com.gesmio.relay.domain.Organization;
 import com.gesmio.relay.repository.DeliveryRepository;
+import com.gesmio.relay.security.ApiKeyAuthFilter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,17 +32,19 @@ public class DeliveryController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public Page<DeliveryResponse> list(@RequestParam(required = false) DeliveryStatus status, Pageable pageable) {
+    public Page<DeliveryResponse> list(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
+                                        @RequestParam(required = false) DeliveryStatus status, Pageable pageable) {
         Page<Delivery> page = status != null
-                ? deliveryRepository.findByStatus(status, pageable)
-                : deliveryRepository.findAll(pageable);
+                ? deliveryRepository.findByEvent_Endpoint_OrganizationAndStatus(organization, status, pageable)
+                : deliveryRepository.findByEvent_Endpoint_Organization(organization, pageable);
         return page.map(DeliveryResponse::from);
     }
 
     @PostMapping("/{id}/replay")
     @Transactional
-    public DeliveryResponse replay(@PathVariable Long id) {
-        Delivery delivery = deliveryRepository.findById(id)
+    public DeliveryResponse replay(@RequestAttribute(ApiKeyAuthFilter.ORGANIZATION_ATTRIBUTE) Organization organization,
+                                    @PathVariable Long id) {
+        Delivery delivery = deliveryRepository.findByIdAndEvent_Endpoint_Organization(id, organization)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "delivery not found"));
 
         if (delivery.getStatus() != DeliveryStatus.FAILED) {
