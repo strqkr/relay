@@ -5,6 +5,13 @@ export interface Organization {
   createdAt: string;
 }
 
+export interface AuthResponse {
+  organizationId: number;
+  organizationName: string;
+  email: string | null;
+  apiKey: string | null;
+}
+
 export interface Endpoint {
   id: number;
   name: string;

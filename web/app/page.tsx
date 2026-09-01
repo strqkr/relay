@@ -1,38 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/apiClient";
-import { getStoredApiKey, setStoredApiKey } from "@/lib/apiKey";
-import type { Organization } from "@/lib/types";
+import { setStoredApiKey } from "@/lib/apiKey";
+import { setStoredSession } from "@/lib/session";
+import { useIsConnected } from "@/lib/useConnection";
+import type { AuthResponse } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function ConnectPage() {
+export default function LoginPage() {
   const router = useRouter();
-  const [orgName, setOrgName] = useState("");
+  const connected = useIsConnected();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [existingKey, setExistingKey] = useState("");
+  const [showKeyForm, setShowKeyForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (getStoredApiKey()) {
+    if (connected) {
       router.push("/endpoints");
     }
-  }, [router]);
+  }, [connected, router]);
 
-  async function createOrganization(e: React.FormEvent) {
+  if (connected) {
+    return null;
+  }
+
+  async function login(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const org = await api.post<Organization>("/organizations", { name: orgName });
-      setStoredApiKey(org.apiKey);
+      const auth = await api.post<AuthResponse>("/auth/login", { email, password });
+      setStoredSession({ organizationId: auth.organizationId, organizationName: auth.organizationName, email: auth.email });
       router.push("/endpoints");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? "Invalid email or password." : "Something went wrong.");
     } finally {
       setBusy(false);
     }
@@ -53,47 +63,76 @@ export default function ConnectPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Create a new organization</CardTitle>
-          <CardDescription>Get an API key to start registering endpoints.</CardDescription>
+          <CardTitle>Log in</CardTitle>
+          <CardDescription>Access your organization&apos;s dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={createOrganization} className="flex flex-col gap-3">
+          <form onSubmit={login} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="orgName">Organization name</Label>
-              <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-            <Button type="submit" disabled={busy || !orgName}>
-              Create and get an API key
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Connect with an existing key</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={connectWithExistingKey} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="apiKey">API key</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
-                id="apiKey"
-                className="font-mono text-sm"
-                placeholder="relay_..."
-                value={existingKey}
-                onChange={(e) => setExistingKey(e.target.value)}
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
-            <Button type="submit" variant="outline" disabled={!existingKey}>
-              Connect
+            <Button type="submit" disabled={busy || !email || !password}>
+              {busy ? "Logging in…" : "Log in"}
             </Button>
           </form>
+          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
         </CardContent>
       </Card>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <p className="text-center text-sm text-muted-foreground">
+        New to relay?{" "}
+        <Link href="/signup" className="underline underline-offset-4 hover:text-foreground">
+          Create an account
+        </Link>
+      </p>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setShowKeyForm((v) => !v)}
+          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          {showKeyForm ? "Hide" : "Or connect with an API key"}
+        </button>
+      </div>
+
+      {showKeyForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Connect with an API key</CardTitle>
+            <CardDescription>For organizations provisioned directly through the API.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={connectWithExistingKey} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="apiKey">API key</Label>
+                <Input
+                  id="apiKey"
+                  className="font-mono text-sm"
+                  placeholder="relay_..."
+                  value={existingKey}
+                  onChange={(e) => setExistingKey(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" variant="outline" disabled={!existingKey}>
+                Connect
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
