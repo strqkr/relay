@@ -50,6 +50,11 @@ public class DeliveryWorker {
     }
 
     @Transactional
+    public void attemptById(Long deliveryId) {
+        deliveryRepository.findById(deliveryId).ifPresent(this::attempt);
+    }
+
+    @Transactional
     public void attempt(Delivery delivery) {
         Event event = delivery.getEvent();
         Endpoint endpoint = event.getEndpoint();

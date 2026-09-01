@@ -16,28 +16,33 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.jayway.jsonpath.JsonPath.read;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Exercises the full webhook lifecycle through the real REST API and the delivery worker:
- * register an endpoint, ingest an event, let the worker deliver it, and confirm it shows up
- * signed and correctly in the dashboard.
+ * Exercises the full webhook lifecycle through the real REST API, the Redis stream fast path,
+ * and the delivery worker: register an endpoint, ingest an event, let it get delivered
+ * automatically, and confirm it shows up signed and correctly in the dashboard.
+ *
+ * Deliberately not @Transactional: the stream consumer runs on its own thread with its own
+ * connection, so it needs to see committed data, not whatever's still open in the test's
+ * transaction.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 class WebhookDeliveryFlowTest {
 
     @Autowired
@@ -77,7 +82,7 @@ class WebhookDeliveryFlowTest {
     }
 
     @Test
-    void deliversIngestedEventEndToEndAndShowsUpInDashboard() throws Exception {
+    void deliversIngestedEventAutomaticallyViaTheStreamAndShowsUpInDashboard() throws Exception {
         String authHeader = createOrganizationAndGetAuthHeader();
         AtomicReference<String> receivedBody = new AtomicReference<>();
         AtomicReference<String> receivedSignature = new AtomicReference<>();
@@ -107,14 +112,15 @@ class WebhookDeliveryFlowTest {
                 .andReturn();
         Long deliveryId = ((Number) read(ingest.getResponse().getContentAsString(), "$.deliveryId")).longValue();
 
-        // simulate the scheduler waking up and processing the newly ingested, due delivery
-        Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
-        worker.attempt(delivery);
+        // no manual trigger here — the stream consumer should pick this up and deliver it on its own
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
+            assertThat(delivery.getStatus()).isEqualTo(DeliveryStatus.SUCCESS);
+        });
 
-        delivery = deliveryRepository.findById(deliveryId).orElseThrow();
-        assertThat(delivery.getStatus()).isEqualTo(DeliveryStatus.SUCCESS);
-        assertThat(receivedBody.get()).isEqualTo(delivery.getEvent().getPayload());
-        assertThat(receivedSignature.get()).isEqualTo(hmacSigner.sign(receivedBody.get(), secret));
+        String expectedPayload = "{\"orderId\":42}";
+        assertThat(receivedBody.get()).isEqualTo(expectedPayload);
+        assertThat(receivedSignature.get()).isEqualTo(hmacSigner.sign(expectedPayload, secret));
 
         mockMvc.perform(get("/deliveries")
                         .header(HttpHeaders.AUTHORIZATION, authHeader)
@@ -146,10 +152,17 @@ class WebhookDeliveryFlowTest {
                 .andReturn();
         Long deliveryId = ((Number) read(ingest.getResponse().getContentAsString(), "$.deliveryId")).longValue();
 
+        // wait for the stream consumer's first (failing) attempt before forcing it near exhaustion
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
+            assertThat(delivery.getAttemptCount()).isGreaterThanOrEqualTo(1);
+        });
+
         Delivery delivery = deliveryRepository.findById(deliveryId).orElseThrow();
         delivery.setAttemptCount(delivery.getMaxAttempts() - 1);
+        delivery.setNextAttemptAt(Instant.now());
         deliveryRepository.save(delivery);
-        worker.attempt(delivery);
+        worker.attemptById(deliveryId);
 
         Delivery failed = deliveryRepository.findById(deliveryId).orElseThrow();
         assertThat(failed.getStatus()).isEqualTo(DeliveryStatus.FAILED);
