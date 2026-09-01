@@ -12,6 +12,10 @@ RUN pnpm install --frozen-lockfile
 # --- build ---
 FROM base AS builder
 WORKDIR /app
+# Baked into the build, like Next.js's rewrites() manifest - NEXT_PUBLIC_* vars are inlined
+# at build time and a runtime `docker run -e` has no effect on them.
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3001
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm run build

@@ -1,4 +1,4 @@
-# @gesmio/relay-sdk
+# @hisurum/relay-sdk
 
 Node.js client for the relay webhook delivery API: register endpoints and topics,
 publish events, manage subscriptions, and verify inbound webhooks.
@@ -8,7 +8,7 @@ Zero runtime dependencies — built on Node 18+'s global `fetch` and `node:crypt
 ## Setup
 
 ```ts
-import { RelayClient } from "@gesmio/relay-sdk";
+import { RelayClient } from "@hisurum/relay-sdk";
 
 const relay = new RelayClient({
   apiKey: process.env.RELAY_API_KEY!,
@@ -39,7 +39,7 @@ Every delivery is signed with the endpoint's own secret (returned once, from
 `createEndpoint`). Verify it before trusting the request body:
 
 ```ts
-import { verifyWebhookSignature } from "@gesmio/relay-sdk";
+import { verifyWebhookSignature } from "@hisurum/relay-sdk";
 
 app.post("/hooks/orders", express.text({ type: "*/*" }), (req, res) => {
   const signature = req.header("x-relay-signature");
@@ -73,7 +73,7 @@ Failed requests throw `RelayApiError`, which carries the HTTP `status` and the
 response body as `message`:
 
 ```ts
-import { RelayApiError } from "@gesmio/relay-sdk";
+import { RelayApiError } from "@hisurum/relay-sdk";
 
 try {
   await relay.verifyEndpoint(endpoint.id);

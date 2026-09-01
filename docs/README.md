@@ -1,6 +1,6 @@
 # relay docs
 
-Documentation site for [relay](https://github.com/gesmio/relay), built with
+Documentation site for [relay](https://github.com/hisurum/relay), built with
 [Fumadocs](https://fumadocs.dev).
 
 ## Development
